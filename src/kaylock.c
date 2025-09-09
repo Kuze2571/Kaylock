@@ -15,6 +15,7 @@
 #include <math.h>
 
 #include "xdg-shell-client-protocol.h"
+#include "keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h"
 
 // Recovery password, can be deactivated or modified at your convenience
 #define BYPASS_PASSWORD "debug123"
@@ -32,6 +33,10 @@ struct wayland_locker {
     struct wl_keyboard *keyboard;
     struct wl_pointer *pointer;
     struct wl_shm *shm;
+
+    // keyboard shortcuts inhibit
+    struct zwp_keyboard_shortcuts_inhibit_manager_v1 *inhibit_manager;
+    struct zwp_keyboard_shortcuts_inhibitor_v1 *inhibitor;
 
     // xkbcommon keyboard management
     struct xkb_context *xkb_context;
@@ -180,6 +185,9 @@ static void handle_global(void *data, struct wl_registry *registry,
     } else if (strcmp(interface, wl_shm_interface.name) == 0) {
         locker->shm = wl_registry_bind(registry, name,
                                       &wl_shm_interface, 1);
+    } else if (strcmp(interface, zwp_keyboard_shortcuts_inhibit_manager_v1_interface.name) == 0) {
+        locker->inhibit_manager = wl_registry_bind(registry, name,
+            &zwp_keyboard_shortcuts_inhibit_manager_v1_interface, 1);
     }
 }
 
@@ -818,6 +826,17 @@ int main(int argc, char **argv) {
 
     wl_display_roundtrip(locker.display);
 
+    // Inhibit keyboard shortcuts if supported
+    if (locker.inhibit_manager && locker.seat && locker.surface) {
+        locker.inhibitor = zwp_keyboard_shortcuts_inhibit_manager_v1_inhibit_shortcuts(
+            locker.inhibit_manager, locker.surface, locker.seat);
+        if (locker.debug_mode) {
+            printf("Wayland keyboard shortcuts inhibition enabled.\n");
+        }
+    } else if (locker.debug_mode) {
+        printf("Wayland keyboard shortcuts inhibition NOT available.\n");
+    }
+
     // Create and configure the buffer
     locker.buffer = create_buffer(&locker);
     if (!locker.buffer) {
@@ -865,6 +884,10 @@ int main(int argc, char **argv) {
         wl_pointer_destroy(locker.pointer);
     if (locker.keyboard)
         wl_keyboard_destroy(locker.keyboard);
+    if (locker.inhibitor)
+        zwp_keyboard_shortcuts_inhibitor_v1_destroy(locker.inhibitor);
+    if (locker.inhibit_manager)
+        zwp_keyboard_shortcuts_inhibit_manager_v1_destroy(locker.inhibit_manager);
     wl_seat_destroy(locker.seat);
     xdg_wm_base_destroy(locker.xdg_wm_base);
     wl_compositor_destroy(locker.compositor);

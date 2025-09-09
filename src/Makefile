@@ -1,6 +1,7 @@
 CC = gcc
 WAYLAND_PROTOCOLS=/usr/share/wayland-protocols
 XDG_SHELL_XML=$(WAYLAND_PROTOCOLS)/stable/xdg-shell/xdg-shell.xml
+KEYBOARD_SHORTCUTS_INHIBIT_XML=$(WAYLAND_PROTOCOLS)/unstable/keyboard-shortcuts-inhibit/keyboard-shortcuts-inhibit-unstable-v1.xml
 
 CFLAGS = -Wall -Wextra -g $(shell pkg-config --cflags wayland-client) \
     $(shell pkg-config --cflags xkbcommon) \
@@ -19,10 +20,10 @@ PROGRAM = kaylock
 
 all: $(PROGRAM)
 
-$(PROGRAM): kaylock.o xdg-shell-protocol.o
+$(PROGRAM): kaylock.o xdg-shell-protocol.o keyboard-shortcuts-inhibit-unstable-v1-protocol.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-kaylock.o: kaylock.c xdg-shell-client-protocol.h
+kaylock.o: kaylock.c xdg-shell-client-protocol.h keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 xdg-shell-protocol.o: xdg-shell-protocol.c
@@ -33,6 +34,15 @@ xdg-shell-protocol.c:
 
 xdg-shell-client-protocol.h:
 	wayland-scanner client-header $(XDG_SHELL_XML) xdg-shell-client-protocol.h
+
+keyboard-shortcuts-inhibit-unstable-v1-protocol.o: keyboard-shortcuts-inhibit-unstable-v1-protocol.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+keyboard-shortcuts-inhibit-unstable-v1-protocol.c: keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h
+	wayland-scanner private-code $(KEYBOARD_SHORTCUTS_INHIBIT_XML) keyboard-shortcuts-inhibit-unstable-v1-protocol.c
+
+keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h:
+	wayland-scanner client-header $(KEYBOARD_SHORTCUTS_INHIBIT_XML) keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h
 
 clean:
 	rm -f $(PROGRAM) *.o xdg-shell-protocol.c xdg-shell-client-protocol.h
