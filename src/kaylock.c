@@ -46,6 +46,7 @@ struct wayland_locker {
     int debug_mode;
 
     // display settings
+    int transparent_background;
     int blur_radius;
     int input_changed;  // Unused flag in final version
     time_t last_keypress;
@@ -653,21 +654,23 @@ static void draw_background(struct wayland_locker *locker) {
     // Simpler method : drawing a half-transparent blur
     uint32_t *pixels = locker->shm_data;
 
-    // Blue-black fade
-    for (int y = 0; y < locker->height; y++) {
-        for (int x = 0; x < locker->width; x++) {
-            float gradient = 1.0f - (float)y / locker->height;
+    if (!locker->transparent_background) {
+        // Blue-black fade
+        for (int y = 0; y < locker->height; y++) {
+            for (int x = 0; x < locker->width; x++) {
+                float gradient = 1.0f - (float)y / locker->height;
 
-            uint8_t r = (uint8_t)(20 * gradient);
-            uint8_t g = (uint8_t)(20 * gradient);
-            uint8_t b = (uint8_t)(20 * gradient);
-            uint8_t a = 220;  // Plus opaque
+                uint8_t r = (uint8_t)(20 * gradient);
+                uint8_t g = (uint8_t)(20 * gradient);
+                uint8_t b = (uint8_t)(20 * gradient);
+                uint8_t a = 220;  // Plus opaque
 
-            pixels[y * locker->width + x] = (a << 24) | (r << 16) | (g << 8) | b;
+                pixels[y * locker->width + x] = (a << 24) | (r << 16) | (g << 8) | b;
+            }
         }
-    }
 
-    apply_blur(pixels, locker->width, locker->height, locker->blur_radius);
+        apply_blur(pixels, locker->width, locker->height, locker->blur_radius);
+    }
 
     // Cairo surface creation
     cairo_surface_t *surface = cairo_image_surface_create_for_data(
@@ -718,9 +721,10 @@ static void draw_background(struct wayland_locker *locker) {
 static void show_help(const char *prog_name) {
     printf("Usage: %s [options]\n\n", prog_name);
     printf("Options:\n");
-    printf("  -h, --help       Show help\n");
-    printf("  -d, --debug      Activate debug mode (verbose)\n");
-    printf("  -b, --blur N     Define blur level (0-20, default: 8)\n");
+    printf("  -h, --help         Show help\n");
+    printf("  -d, --debug        Activate debug mode (verbose)\n");
+    printf("  -b, --blur N       Define blur level (0-20, default: 8)\n");
+    printf("  -t, --transparent  Skip background creation\n");
     printf("\nIn debug mode, a recovery password is activated : '%s'\n", BYPASS_PASSWORD);
 }
 
@@ -746,6 +750,8 @@ int main(int argc, char **argv) {
                 if (locker.blur_radius < 0) locker.blur_radius = 0;
                 if (locker.blur_radius > 20) locker.blur_radius = 20;
             }
+        } else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--transparent") == 0) {
+            locker.transparent_background = 1;
         } else {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             show_help(argv[0]);
