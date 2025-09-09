@@ -7,7 +7,7 @@ This tool is an attempt to recreate a simple screen locker as xtrlock in KDE Pla
 You will need to install the following libraries from PAM & Wayland :
 
 ```bash
-sudo apt install build-essential wayland-protocols libwayland-dev libpam0g-dev pkg-config
+sudo apt install build-essential wayland-protocols libwayland-dev libpam0g-dev pkg-config libxkbcommon-dev libcairo2-dev libpango1.0-dev
 ```
 
 ## Installation
